@@ -33,7 +33,7 @@ window.Pages.calendar = async function (root) {
       <div class="card">
         <div class="flex-between" style="margin-bottom:12px;">
           <button class="icon-btn" id="calPrev" aria-label="Previous month">${Icons.back}</button>
-          <div style="text-align:center;"><div style="font-weight:650;font-size:16px;" aria-live="polite">${first.toLocaleDateString(Utils.locale,{month:"long",year:"numeric"})}</div>
+          <div style="text-align:center;"><div style="font-weight:650;font-size:16px;" aria-live="polite">${first.toLocaleDateString(Utils.DATE_LOCALE,{month:"long",year:"numeric"})}</div>
             <button class="link" id="calToday" style="background:none;border:none;color:var(--green);font-size:12.5px;font-weight:600;cursor:pointer;padding:6px;">Today</button></div>
           <button class="icon-btn" id="calNext" aria-label="Next month" style="transform:rotate(180deg);">${Icons.back}</button>
         </div>
@@ -46,7 +46,7 @@ window.Pages.calendar = async function (root) {
             const io = e.inst.length;
             const parts = [od && `${od} overdue`, du && `${du} due`, io && `${io} installment${io>1?"s":""}`, e.paid.length && `${e.paid.length} payment${e.paid.length>1?"s":""}`].filter(Boolean);
             const marks = [od ? `<i class="mk overdue"></i>` : "", du ? `<i class="mk due"></i>` : "", io ? `<i class="mk inst"></i>` : "", e.paid.length ? `<i class="mk paid"></i>` : ""].join("");
-            const label = `${new Date(year, month, d).toLocaleDateString(Utils.locale,{weekday:"long",month:"long",day:"numeric"})}${parts.length ? ": " + parts.join(", ") : ""}`;
+            const label = `${new Date(year, month, d).toLocaleDateString(Utils.DATE_LOCALE,{weekday:"long",month:"long",day:"numeric"})}${parts.length ? ": " + parts.join(", ") : ""}`;
             return `<button class="cal-cell ${k === todayKey ? "today" : ""} ${k === _calSelected ? "selected" : ""}" data-key="${k}" aria-label="${label}" ${k === todayKey ? 'aria-current="date"' : ""}>${d}<span class="marks" aria-hidden="true">${marks}</span></button>`;
           }).join("")}
         </div>
@@ -73,7 +73,7 @@ window.Pages.calendar = async function (root) {
     const card = root.querySelector("#calDayDetail"), title = root.querySelector("#dayTitle");
     if (!k) { title.textContent = "Selected day"; card.innerHTML = emptyState("calendar", "Pick a date", "Tap a day to see loans due, installments and payments."); return; }
     const [y, m, d] = k.split("-").map(Number), dt = new Date(y, m - 1, d, 12);
-    title.textContent = dt.toLocaleDateString(Utils.locale, { weekday: "long", month: "long", day: "numeric" });
+    title.textContent = dt.toLocaleDateString(Utils.DATE_LOCALE, { weekday: "long", month: "long", day: "numeric" });
     const e = events[k] || { due: [], inst: [], paid: [] };
     if (!e.due.length && !e.inst.length && !e.paid.length) { card.innerHTML = emptyState("calendar", "Nothing scheduled", "No loans due, installments or payments on this day."); return; }
     const sec = (label, html) => html ? `<div class="eyebrow" style="margin:6px 4px 2px;">${label}</div>${html}` : "";

@@ -25,10 +25,10 @@ window.Pages.reports = async function (root) {
     const out = [];
     if ((to - from) / Utils.DAY <= 62) {
       for (let t = Utils.startOfDay(from); t <= to && out.length < 9; t += 7 * Utils.DAY)
-        out.push({ label: new Date(t).toLocaleDateString(Utils.locale, { month: "short", day: "numeric" }), from: t, to: t + 7 * Utils.DAY - 1 });
+        out.push({ label: new Date(t).toLocaleDateString(Utils.DATE_LOCALE, { month: "short", day: "numeric" }), from: t, to: t + 7 * Utils.DAY - 1 });
     } else {
       const d = new Date(from); d.setDate(1); d.setHours(0,0,0,0);
-      while (d.getTime() <= to) { const s = d.getTime(); d.setMonth(d.getMonth() + 1); out.push({ label: new Date(s).toLocaleDateString(Utils.locale, { month: "short" }), from: s, to: d.getTime() - 1 }); }
+      while (d.getTime() <= to) { const s = d.getTime(); d.setMonth(d.getMonth() + 1); out.push({ label: new Date(s).toLocaleDateString(Utils.DATE_LOCALE, { month: "short" }), from: s, to: d.getTime() - 1 }); }
     }
     return out.slice(-12);
   }

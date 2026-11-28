@@ -157,6 +157,7 @@ async function bootApp(){
     document.getElementById("appMain").innerHTML=`<div class="card" style="margin:20px 0;">${emptyState("warn","Can't open local storage","Utanginamo needs browser storage to keep your records. Check that private browsing is off and storage isn't blocked, then reload.")}</div>`; return;
   }
   Toast.init(); Sheet.init();
+  await Utils.loadRegion();                           // currency / number / date format
   applyTheme(await DB.getSetting("theme","system"));
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",async()=>{ if((await DB.getSetting("theme","system"))==="system") applyTheme("system"); });
   document.getElementById("fab").onclick=openQuickAdd;
@@ -173,23 +174,8 @@ async function bootApp(){
   const action=new URLSearchParams(location.search).get("action");
   await Router.render();
   if (action==="add-loan") openQuickAddLoan(); if (action==="add-payment") openPaymentForm(null,null);
-  setupInstallPrompt(); schedulePushReminders();
+  schedulePushReminders(); Install.showBanner();      // install event is captured early by index.html
 }
 async function openQuickAddLoan(){ if(!(await DB.listBorrowers()).length){ Toast.show("Add a borrower first",{type:"error"}); openBorrowerForm(); } else openLoanForm(null,null); }
 
-let deferredInstallPrompt=null;
-function setupInstallPrompt(){
-  window.addEventListener("beforeinstallprompt",(e)=>{ e.preventDefault(); deferredInstallPrompt=e; showInstallBanner(); });
-  window.addEventListener("appinstalled",()=>{ deferredInstallPrompt=null; const b=document.getElementById("installBanner"); if(b) b.remove(); });
-}
-function showInstallBanner(){
-  if (document.getElementById("installBanner")) return;
-  const el=document.createElement("div"); el.id="installBanner";
-  el.style.cssText="position:fixed;left:14px;right:14px;bottom:calc(140px + var(--safe-bottom));max-width:530px;margin:0 auto;background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--sh-2);z-index:70;";
-  el.innerHTML=`<div class="avatar">${Icons.coin}</div><div style="flex:1;"><div style="font-weight:650;font-size:13.5px;">Install Utanginamo</div><div class="muted" style="font-size:12px;">Open it like an app, even offline.</div></div>
-    <button class="btn btn-primary btn-sm" id="installNow">Install</button><button class="icon-btn" id="dismissInstall" style="width:36px;height:36px;" aria-label="Dismiss">${Icons.x}</button>`;
-  document.body.appendChild(el);
-  el.querySelector("#installNow").onclick=async()=>{ if(deferredInstallPrompt){ deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; } el.remove(); };
-  el.querySelector("#dismissInstall").onclick=()=>el.remove();
-}
 document.addEventListener("DOMContentLoaded",bootApp);

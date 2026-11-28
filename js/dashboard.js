@@ -21,7 +21,7 @@ window.Pages.dashboard = async function(root) {
       <div class="label">Owed to you</div>
       <div class="amount">${Utils.money(s.totalReceivables)}</div>
       <div class="meta">${openLoans.length} open loan${openLoans.length===1?"":"s"} · principal ${Utils.money(s.outstandingPrincipal)}</div>
-      ${s.overdueCount>0?`<div style="margin-top:12px;display:inline-flex;align-items:center;gap:6px;background:var(--red-soft);border-radius:20px;padding:5px 12px;font-size:12.5px;font-weight:700;color:var(--red);">
+      ${s.overdueCount>0?`<div style="margin-top:12px;display:inline-flex;align-items:center;gap:6px;background:var(--red-soft);border-radius:2px;padding:5px 10px;font-size:13px;font-weight:500;color:var(--red);white-space:nowrap;">
         ${Icons.warn} ${s.overdueCount} overdue · ${Utils.money(s.overdueAmount)}</div>`:""}
     </div>
 
@@ -32,7 +32,7 @@ window.Pages.dashboard = async function(root) {
     </div>
 
     <div style="display:flex;gap:8px;margin-top:12px;">
-      <button class="btn btn-primary" style="flex:1;" id="qaPay">Record Payment</button>
+      <button class="btn btn-primary" style="flex:1.7;white-space:nowrap;" id="qaPay">Record Payment</button>
       <button class="btn btn-ghost" style="flex:1;" id="qaLoan">New Loan</button>
       <button class="btn btn-ghost" id="qaBorrower" aria-label="Add borrower">${Icons.users}</button>
     </div>

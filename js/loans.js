@@ -99,7 +99,7 @@ window.Pages.loanDetail = async function(root, params) {
         ${Utils.coinRing(pctPaid,60,7,c.status==="overdue"?"var(--red)":"var(--green)")}
         <div style="flex:1;">
           <div class="eyebrow">Remaining Balance</div>
-          <div style="font-size:24px;font-weight:700;font-family:var(--font-mono);">${Utils.money(c.remaining)}</div>
+          <div class="serif" style="font-size:36px;line-height:1.1;letter-spacing:-.02em;">${Utils.money(c.remaining)}</div>
           <div class="muted" style="font-size:12px;margin-top:2px;">of ${Utils.money(c.totalDue)} total due · ${Utils.money(c.paid)} paid</div>
         </div>
       </div>
@@ -116,16 +116,20 @@ window.Pages.loanDetail = async function(root, params) {
     </div>
 
     <div class="section-title"><h2>How this is calculated</h2></div>
-    <div class="card" style="font-size:13.5px;line-height:1.7;">
-      <div class="flex-between"><span class="muted">Principal</span><span class="num">${Utils.money(c.principal)}</span></div>
-      <div class="flex-between"><span class="muted">Interest</span><span class="num">${Utils.money(c.interest)}</span></div>
-      <div class="faint" style="font-size:12px;margin:-2px 0 6px;">${Utils.escapeHtml(Finance.explainInterest(loan, Utils.money))}</div>
-      <div class="flex-between"><span class="muted">Penalty</span><span class="num">${Utils.money(c.penalty)}</span></div>
-      <div class="faint" style="font-size:12px;margin:-2px 0 6px;">${Utils.escapeHtml(penaltyText(loan))}</div>
-      <div class="divider" style="margin:8px 0;"></div>
-      <div class="flex-between"><b>Total due</b><b class="num">${Utils.money(c.totalDue)}</b></div>
-      <div class="faint" style="font-size:12px;margin-top:6px;">Payments are applied to penalty first, then interest, then principal.</div>
-    </div>
+    <div class="tape">
+      <div class="tape-title">LOAN #${loan.id.slice(-6).toUpperCase()}</div>
+      <div class="tape-sub">${Utils.fmtDate(loan.dateBorrowed)} → ${Utils.fmtDate(loan.dueDate)}</div><div class="d"></div>
+      <div class="ln"><span>Principal</span><i></i><b>${Utils.money(c.principal)}</b></div>
+      <div class="ln"><span>Interest</span><i></i><b>${Utils.money(c.interest)}</b></div>
+      <div class="k" style="margin:-2px 0 6px;text-transform:none;letter-spacing:0;">${Utils.escapeHtml(Finance.explainInterest(loan, Utils.money))}</div>
+      <div class="ln"><span>Penalty</span><i></i><b>${Utils.money(c.penalty)}</b></div>
+      <div class="k" style="margin:-2px 0 6px;text-transform:none;letter-spacing:0;">${Utils.escapeHtml(penaltyText(loan))}</div>
+      <div class="d"></div>
+      <div class="ln"><b>TOTAL DUE</b><i></i><b>${Utils.money(c.totalDue)}</b></div>
+      <div class="ln"><span>Paid so far</span><i></i><b>-${Utils.money(c.paid)}</b></div>
+      <div class="ln"><b>REMAINING</b><i></i><b class="${c.status==="overdue"?"neg":""}">${Utils.money(c.remaining)}</b></div>
+      <div class="k" style="margin-top:10px;text-transform:none;letter-spacing:0;">Payments are applied to penalty first, then interest, then principal.</div>
+    </div><div class="tape-edge"></div>
 
     ${loan.notes?`<div class="card" style="margin-top:10px;"><div class="eyebrow" style="margin-bottom:6px;">Notes</div><div style="font-size:13.5px;line-height:1.5;">${Utils.escapeHtml(loan.notes)}</div></div>`:""}
 
@@ -154,6 +158,7 @@ window.Pages.loanDetail = async function(root, params) {
     <div class="section-title"><h2>Manage</h2></div>
     <div class="card" style="display:flex;flex-direction:column;gap:10px;">
       <button class="btn btn-ghost btn-block" id="editLoanBtn">Edit Loan</button>
+      ${open?`<button class="btn btn-ghost btn-block" id="calLoanBtn">${Icons.calendar}&nbsp;Add reminders to calendar</button>`:""}
       <button class="btn btn-ghost btn-block" id="archiveLoanBtn">${closed?"Reopen Loan":"Archive Loan"}</button>
       <button class="btn btn-danger btn-block" id="delLoanBtn">Delete Loan</button>
     </div>`;
@@ -162,6 +167,7 @@ window.Pages.loanDetail = async function(root, params) {
   if (b) { q("#borrowerLink").onclick = () => Router.go("borrowerProfile",{id:b.id}); }
   if (q("#addPayBtn")) q("#addPayBtn").onclick = () => openPaymentForm(loan,b);
   q("#editLoanBtn").onclick = () => openLoanForm(loan, loan.borrowerId);
+  if (q("#calLoanBtn")) q("#calLoanBtn").onclick = () => Ics.openSheet([loan.id]);
   q("#archiveLoanBtn").onclick = async () => {
     const next = closed ? "active" : "archived";
     await DB.updateLoan(loan.id, { status:next }, closed ? "Loan reopened" : "Loan archived");
@@ -342,14 +348,14 @@ async function showReceipt(payment, loan, borrower) {
   const alloc = [["Penalty",a.penalty],["Interest",a.interest],["Principal",a.principal]].filter(x=>x[1]>0);
   const row = ([k,v],s="") => `<div class="flex-between" ${s}><span class="muted">${Utils.escapeHtml(k)}</span><span>${Utils.escapeHtml(String(v))}</span></div>`;
   Sheet.open({ title:"Payment Receipt",
-    bodyHtml:`<div style="font-family:var(--font-mono);padding:6px 0;">
-      <div style="text-align:center;font-size:13px;letter-spacing:.1em;color:var(--green);font-weight:700;">UTANGINAMO RECEIPT</div><div class="divider"></div>
-      <div style="font-size:13.5px;line-height:2.1;">${rows.map(r=>row(r)).join("")}<div class="divider"></div>
-        <div class="flex-between" style="font-size:17px;font-weight:700;"><span>Amount Paid</span><span style="color:var(--green);">${Utils.money(payment.amount)}</span></div>
-        ${alloc.map(([k,v])=>`<div class="flex-between" style="font-size:12px;"><span class="muted">↳ ${k}</span><span>${Utils.money(v)}</span></div>`).join("")}
-        <div class="divider"></div>
-        <div class="flex-between"><span class="muted">Balance after</span><b>${Utils.money(after.remaining)}</b></div></div>
-      ${payment.notes?`<div class="divider"></div><div style="font-size:12.5px;color:var(--text-dim);">${Utils.escapeHtml(payment.notes)}</div>`:""}</div>`,
+    bodyHtml:`<div class="tape"><div class="tape-title">UTANGINAMO</div><div class="tape-sub">PAYMENT RECEIPT · LOAN #${ref}</div>
+      <div class="d"></div>
+      ${rows.filter(r=>r[0]!=="Loan ref").map(([k,v])=>`<div class="ln"><span>${Utils.escapeHtml(k)}</span><i></i><b>${Utils.escapeHtml(String(v))}</b></div>`).join("")}<div class="d"></div>
+      <div style="position:relative;"><div class="k">Amount paid</div><div class="big">${Utils.money(payment.amount)}</div>
+        <div class="stamp" style="top:4px;right:0;">${after.remaining===0?"PAID IN FULL":"RECEIVED"}</div></div>
+      ${alloc.map(([k,v])=>`<div class="ln"><span>↳ ${k}</span><i></i><b>${Utils.money(v)}</b></div>`).join("")}<div class="d"></div>
+      <div class="ln"><span>Balance after</span><i></i><b>${Utils.money(after.remaining)}</b></div>
+      ${payment.notes?`<div class="d"></div><div class="k" style="text-transform:none;letter-spacing:0;">${Utils.escapeHtml(payment.notes)}</div>`:""}</div><div class="tape-edge"></div>`,
     footHtml:`<button class="btn btn-primary btn-block" id="printReceipt">${Icons.download}&nbsp;Print / Save PDF</button>`,
     onMount:(sheet)=>{
       sheet.querySelector("#printReceipt").onclick=()=>{

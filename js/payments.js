@@ -25,7 +25,7 @@ async function openPaymentForm(loan, borrower, onDone, opts = {}) {
         <div class="field"><label for="pMethod">Method</label><select id="pMethod"><option>Cash</option><option>GCash</option><option>Bank Transfer</option><option>Maya</option><option>Palawan</option><option>Other</option></select></div>
       </div>
       <div class="field"><label for="pRef">Reference #</label><input id="pRef" placeholder="Optional"></div>
-      <div class="card" id="pAlloc" style="background:var(--surface-2);margin-bottom:12px;display:none;"></div>
+      <div id="pAlloc" style="margin-bottom:12px;display:none;"></div>
       <details style="margin-bottom:12px;"><summary>Adjust allocation (advanced)</summary>
         <div style="padding-top:8px;">
           <p class="muted" style="font-size:12px;margin:0 0 8px;">Leave blank to apply automatically: penalty → interest → principal. If you fill these in, they must add up to the payment.</p>
@@ -70,9 +70,9 @@ async function openPaymentForm(loan, borrower, onDone, opts = {}) {
         msg.textContent = v.ok ? "" : v.error; msg.style.color = v.ok ? "" : "var(--red)";
         btn.disabled = !v.ok || submitting;
         if (v.ok) {
-          const a = v.allocation, row = (l, n) => n > 0 ? `<div class="flex-between" style="font-size:13px;"><span class="muted">${l}</span><span class="num">${money(n)}</span></div>` : "";
-          box.style.display = ""; box.innerHTML = `<div class="eyebrow" style="margin-bottom:6px;">This payment covers</div>${row("Penalty", a.penalty)}${row("Interest", a.interest)}${row("Principal", a.principal)}
-            <div class="divider" style="margin:8px 0;"></div><div class="flex-between"><span>Remaining after</span><b class="num">${money(v.remainingAfter)}</b></div>`;
+          const a = v.allocation, row = (l, n) => n > 0 ? `<div class="ln"><span>${l}</span><i></i><b>${money(n)}</b></div>` : "";
+          box.style.display = ""; box.innerHTML = `<div class="tape" style="padding:14px 16px;"><div class="k">This payment covers</div>${row("Penalty", a.penalty)}${row("Interest", a.interest)}${row("Principal", a.principal)}
+            <div class="d" style="margin:8px 0;"></div><div class="ln"><b>Remaining after</b><i></i><b>${money(v.remainingAfter)}</b></div></div><div class="tape-edge"></div>`;
         } else box.style.display = "none";
         return v;
       }

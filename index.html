@@ -6,15 +6,20 @@
 <title>Utanginamo — Lending Ledger</title>
 <meta name="color-scheme" content="dark light">
 <meta name="description" content="Track borrowers, loans, and payments — entirely offline.">
-<meta name="theme-color" content="#0E1116" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#F4F6F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#17181B" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F3EEE3" media="(prefers-color-scheme: light)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Utanginamo">
 <link rel="manifest" href="./manifest.json">
-<link rel="icon" href="./icons/icon-192.png">
-<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="icon" href="./favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<script>
+  /* The browser fires "beforeinstallprompt" once and early. Capture it NOW so the app can offer Install whenever the user is ready. */
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); window.__bip = e; window.dispatchEvent(new Event("utang:installable")); });
+</script>
 <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>
@@ -25,7 +30,7 @@
   <button id="fab" aria-label="Quick add"></button>
   <nav class="tabbar" id="tabbar" aria-label="Main"></nav>
 
-  <noscript style="display:block;padding:40px;text-align:center;font-family:sans-serif;color:#fff;background:#0E1116;min-height:100vh;">
+  <noscript style="display:block;padding:40px;text-align:center;font-family:sans-serif;color:#fff;background:#17181B;min-height:100vh;">
     Utanginamo requires JavaScript. Please enable it in your browser settings.
   </noscript>
 
@@ -37,6 +42,8 @@
   <script src="./js/helpers.js"></script>
   <script src="./js/security.js"></script>
   <script src="./js/backup.js"></script>
+  <script src="./js/install.js"></script>
+  <script src="./js/ics.js"></script>
   <script>window.Pages = {};</script>
   <script src="./js/dashboard.js"></script>
   <script src="./js/borrowers.js"></script>

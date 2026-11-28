@@ -3,19 +3,61 @@
    ALL loan math lives in finance.js (Finance). computeLoan is a thin wrapper.
    ============================================================ */
 const Utils = {
-  // ---------- currency (centralized; change here to support other regions) ----------
-  currencySymbol: "₱",
-  locale: "en-PH",
-  money(n) {
-    n = Number(n) || 0;
-    const sign = n < 0 ? "-" : "";
-    return `${sign}${Utils.currencySymbol}${Math.abs(n).toLocaleString(Utils.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // ---------- region: currency / number format / date format (ONE place; every screen, receipt and export follows it) ----------
+  // Changing these only changes how amounts are SHOWN. Stored amounts are never converted.
+  CURRENCIES: [
+    { code:"PHP", symbol:"₱",  name:"Philippine peso" }, { code:"USD", symbol:"$",   name:"US dollar" },
+    { code:"EUR", symbol:"€",  name:"Euro" },             { code:"GBP", symbol:"£",   name:"British pound" },
+    { code:"AUD", symbol:"A$", name:"Australian dollar" },{ code:"CAD", symbol:"C$",  name:"Canadian dollar" },
+    { code:"SGD", symbol:"S$", name:"Singapore dollar" }, { code:"HKD", symbol:"HK$", name:"Hong Kong dollar" },
+    { code:"NZD", symbol:"NZ$",name:"New Zealand dollar" },{ code:"INR", symbol:"₹",  name:"Indian rupee" },
+    { code:"IDR", symbol:"Rp", name:"Indonesian rupiah" }, { code:"MYR", symbol:"RM",  name:"Malaysian ringgit" },
+    { code:"THB", symbol:"฿",  name:"Thai baht" },        { code:"CNY", symbol:"¥",   name:"Chinese yuan" },
+    { code:"AED", symbol:"AED",name:"UAE dirham" },       { code:"SAR", symbol:"SAR", name:"Saudi riyal" },
+    { code:"BRL", symbol:"R$", name:"Brazilian real" },   { code:"MXN", symbol:"MX$", name:"Mexican peso" },
+    { code:"ZAR", symbol:"R",  name:"South African rand" },{ code:"NGN", symbol:"₦",  name:"Nigerian naira" },
+    { code:"KES", symbol:"KSh",name:"Kenyan shilling" },  { code:"PKR", symbol:"Rs",  name:"Pakistani rupee" },
+    { code:"BDT", symbol:"৳",  name:"Bangladeshi taka" },
+  ],
+  NUMBER_FORMATS: {
+    en: { label:"1,234.56",   locale:"en-US", symbolAfter:false },
+    in: { label:"1,23,456.78",locale:"en-IN", symbolAfter:false },
+    de: { label:"1.234,56",   locale:"de-DE", symbolAfter:true  },
+    fr: { label:"1 234,56",   locale:"fr-FR", symbolAfter:true  },
   },
+  DATE_FORMATS: { mdy_short:"Nov 22, 2026", dmy_short:"22 Nov 2026", dmy_num:"22/11/2026", mdy_num:"11/22/2026", iso:"2026-11-22" },
+  region: { currency:"PHP", symbol:"₱", num:"en", date:"mdy_short" },
+  currencyCode: "PHP", currencySymbol: "₱", numLocale: "en-US", symbolAfter: false, dateFormat: "mdy_short",
+  locale: "en-US",                       // alias of numLocale (kept for older callers; NOT used for dates)
+  DATE_LOCALE: "en",                     // UI language for month/day names
+  _nf: {},
+  applyRegion(cfg = {}) {
+    const r = { ...Utils.region, ...cfg };
+    const cur = Utils.CURRENCIES.find(c => c.code === r.currency);
+    if (r.currency !== "CUSTOM" && cur) r.symbol = cur.symbol;
+    if (!r.symbol) r.symbol = "₱";
+    r.symbol = String(r.symbol).slice(0, 4);
+    if (!Utils.NUMBER_FORMATS[r.num]) r.num = "en";
+    if (!Utils.DATE_FORMATS[r.date]) r.date = "mdy_short";
+    Utils.region = r; Utils.currencyCode = r.currency === "CUSTOM" ? "" : r.currency; Utils.currencySymbol = r.symbol;
+    const nf = Utils.NUMBER_FORMATS[r.num]; Utils.numLocale = nf.locale; Utils.locale = nf.locale; Utils.symbolAfter = nf.symbolAfter; Utils.dateFormat = r.date; Utils._nf = {};
+    if (typeof document !== "undefined" && document.documentElement) {      // currency prefix inside amount inputs
+      document.documentElement.style.setProperty("--currency", JSON.stringify(r.symbol));
+      document.documentElement.style.setProperty("--cpad", (14 + Math.max(1, r.symbol.length) * 9 + 6) + "px");
+    }
+    return r;
+  },
+  async loadRegion() { try { Utils.applyRegion(await DB.getSetting("region", null) || {}); } catch (e) { Utils.applyRegion({}); } },
+  async saveRegion(cfg) { const r = Utils.applyRegion(cfg); await DB.setSetting("region", r); return r; },
+  _fmt(decimals) {
+    return Utils._nf[decimals] || (Utils._nf[decimals] = new Intl.NumberFormat(Utils.numLocale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }));
+  },
+  _wrap(sign, numStr) { return Utils.symbolAfter ? `${sign}${numStr}\u00A0${Utils.currencySymbol}` : `${sign}${Utils.currencySymbol}${numStr}`; },
+  money(n) { n = Number(n) || 0; return Utils._wrap(n < 0 ? "-" : "", Utils._fmt(2).format(Math.abs(n))); },
   moneyShort(n) {
-    n = Number(n) || 0;
-    const abs = Math.abs(n);
-    if (abs >= 1_000_000) return `${n < 0 ? "-" : ""}${Utils.currencySymbol}${(abs / 1_000_000).toFixed(1)}M`;
-    if (abs >= 1_000) return `${n < 0 ? "-" : ""}${Utils.currencySymbol}${(abs / 1_000).toFixed(1)}K`;
+    n = Number(n) || 0; const abs = Math.abs(n), sign = n < 0 ? "-" : "";
+    if (abs >= 1_000_000) return Utils._wrap(sign, Utils._fmt(1).format(abs / 1_000_000) + "M");
+    if (abs >= 1_000) return Utils._wrap(sign, Utils._fmt(1).format(abs / 1_000) + "K");
     return Utils.money(n);
   },
 
@@ -23,13 +65,23 @@ const Utils = {
   DAY: 86400000,
   startOfDay(ts) { const d = new Date(ts); d.setHours(0,0,0,0); return d.getTime(); },
   daysBetween(a, b) { return Math.round((Utils.startOfDay(b) - Utils.startOfDay(a)) / Utils.DAY); },
-  fmtDate(ts, opts) {
+  _MON: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+  fmtDate(ts) {
     if (!ts) return "—";
-    return new Date(ts).toLocaleDateString(Utils.locale, opts || { month: "short", day: "numeric", year: "numeric" });
+    const d = new Date(ts), y = d.getFullYear(), m = d.getMonth(), day = d.getDate(), p = (x) => String(x).padStart(2, "0");
+    switch (Utils.dateFormat) {
+      case "dmy_short": return `${day} ${Utils._MON[m]} ${y}`;
+      case "dmy_num": return `${p(day)}/${p(m + 1)}/${y}`;
+      case "mdy_num": return `${p(m + 1)}/${p(day)}/${y}`;
+      case "iso": return `${y}-${p(m + 1)}-${p(day)}`;
+      default: return `${Utils._MON[m]} ${day}, ${y}`;
+    }
   },
   fmtDateTime(ts) {
     if (!ts) return "—";
-    return new Date(ts).toLocaleString(Utils.locale, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    const d = new Date(ts), h24 = Utils.dateFormat === "iso" || Utils.dateFormat === "dmy_num" || Utils.dateFormat === "dmy_short" && Utils.numLocale !== "en-US";
+    const time = d.toLocaleTimeString(Utils.DATE_LOCALE, { hour: h24 ? "2-digit" : "numeric", minute: "2-digit", hour12: !h24 });
+    return `${Utils.fmtDate(ts)}, ${time}`;
   },
   fmtRelative(ts) {
     const d = Utils.daysBetween(Date.now(), ts);

@@ -17,6 +17,20 @@ window.Pages.settings = async function(root){
         <button data-t="dark" class="${theme==="dark"?"active":""}">Dark</button>
         <button data-t="light" class="${theme==="light"?"active":""}">Light</button></div></div></div>
 
+    <div class="section-title"><h2>Region &amp; currency</h2></div>
+    <div class="card" style="padding-top:14px;">
+      <div class="field"><label for="rgCur">Currency</label>
+        <select id="rgCur">${Utils.CURRENCIES.map(c=>`<option value="${c.code}">${c.symbol} — ${c.name} (${c.code})</option>`).join("")}<option value="CUSTOM">Custom symbol…</option></select></div>
+      <div class="field hidden" id="rgSymWrap"><label for="rgSym">Symbol (up to 4 characters)</label><input id="rgSym" maxlength="4" autocomplete="off"></div>
+      <div class="field-row">
+        <div class="field"><label for="rgNum">Numbers</label><select id="rgNum">${Object.entries(Utils.NUMBER_FORMATS).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join("")}</select></div>
+        <div class="field"><label for="rgDate">Dates</label><select id="rgDate">${Object.entries(Utils.DATE_FORMATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></div>
+      </div>
+      <div class="tape" style="padding:12px 14px;"><div class="k">Preview</div>
+        <div class="ln"><span>Amount</span><i></i><b id="rgPrevMoney"></b></div><div class="ln"><span>Date</span><i></i><b id="rgPrevDate"></b></div></div><div class="tape-edge"></div>
+      <p class="faint" style="font-size:12.5px;line-height:1.6;margin:0;">This only changes how amounts and dates are <b>shown</b>. Stored amounts are never converted — switching currency does not change what anyone owes. Spreadsheet (CSV) exports always use plain numbers and ISO dates, plus a currency column, so Excel and Sheets read them correctly.</p>
+    </div>
+
     <div class="section-title"><h2>Security</h2></div>
     <div class="card">
       <div class="flex-between" style="padding:4px 0;">
@@ -44,6 +58,10 @@ window.Pages.settings = async function(root){
       <div class="field"><label for="setReminder">Remind me this many days before due</label>
         <input id="setReminder" type="number" inputmode="numeric" min="0" max="30" value="${reminderDays}"></div>
       <button class="btn btn-ghost btn-block" id="saveReminder">Save Reminder Settings</button>
+      <div class="divider"></div>
+      <div style="font-weight:500;font-size:14.5px;">Reminders that work when the app is closed</div>
+      <p class="muted" style="font-size:13px;line-height:1.6;margin:4px 0 12px;">Download a calendar file with every upcoming due date and installment. Your phone's calendar app will alert you — no internet or server needed.</p>
+      <button class="btn btn-ghost btn-block" id="calAll">${Icons.calendar}&nbsp;Add all open loans to calendar</button>
     </div>
 
     <div class="section-title"><h2>Interest Defaults</h2></div>
@@ -87,6 +105,14 @@ window.Pages.settings = async function(root){
       ${persisted===false?`<button class="btn btn-ghost btn-block btn-sm" id="persistBtn" style="margin-top:10px;">Request protection</button>`:""}
     </div>
 
+    <div class="section-title"><h2>Install app</h2></div>
+    <div class="card" style="padding-top:14px;">
+      <div class="muted" id="instText" style="font-size:14px;line-height:1.6;">Checking this device…</div>
+      <div id="instAct" style="margin-top:12px;"></div>
+      <details style="margin-top:6px;"><summary>App health</summary><div id="instDiag" style="font-size:13.5px;line-height:1.9;"></div>
+        <button class="btn btn-ghost btn-sm" id="instRecheck" style="margin-bottom:10px;">Check again</button></details>
+    </div>
+
     <div class="section-title"><h2>Danger Zone</h2></div>
     <div class="card"><button class="btn btn-danger btn-block" id="resetBtn">Reset Database…</button></div>
 
@@ -103,6 +129,37 @@ window.Pages.settings = async function(root){
     root.querySelectorAll("#themeSeg button").forEach(b=>b.classList.remove("active")); btn.classList.add("active");
     await DB.setSetting("theme",btn.dataset.t); applyTheme(btn.dataset.t);
   });
+
+  // ----- region & currency -----
+  const r0=Utils.region, isCustom=r0.currency==="CUSTOM";
+  $("#rgCur").value=isCustom?"CUSTOM":r0.currency; $("#rgNum").value=r0.num; $("#rgDate").value=r0.date; $("#rgSym").value=isCustom?r0.symbol:""; $("#rgSymWrap").classList.toggle("hidden",!isCustom);
+  const rgPreview=()=>{ $("#rgPrevMoney").textContent=Utils.money(1234567.89); $("#rgPrevDate").textContent=Utils.fmtDate(Date.now()); };
+  rgPreview();
+  const rgSave=async()=>{
+    const code=$("#rgCur").value; $("#rgSymWrap").classList.toggle("hidden",code!=="CUSTOM");
+    const cfg={currency:code,num:$("#rgNum").value,date:$("#rgDate").value}; if(code==="CUSTOM") cfg.symbol=($("#rgSym").value||"").trim()||"¤";
+    await Utils.saveRegion(cfg); rgPreview(); Toast.show("Region saved",{type:"success",duration:1600});
+  };
+  ["#rgCur","#rgNum","#rgDate"].forEach(id=>$(id).onchange=rgSave); $("#rgSym").addEventListener("change",rgSave);
+
+  // ----- install & app health -----
+  async function paintInstall(){
+    const d=await Install.diagnostics(), a=Install.advice(d);
+    $("#instText").textContent=a.text; const act=$("#instAct"); act.innerHTML="";
+    if (a.state==="ready"){ act.innerHTML=`<button class="btn btn-primary btn-block" id="instBtn">Install Utanginamo</button>`; $("#instBtn").onclick=async()=>{ await Install.prompt(); paintInstall(); }; }
+    const yn=(ok,good,bad)=>ok?`<b style="color:var(--green)">✓ ${good}</b>`:`<b style="color:var(--red)">✗ ${bad}</b>`;
+    $("#instDiag").innerHTML=[
+      ["Secure connection (https)",yn(d.secure,"Yes","No")],
+      ["Offline engine",yn(d.sw==="active","Running",d.sw==="none"?"Not running":d.sw)],
+      ["Files saved for offline",d.cache?`<b>${d.cachedFiles}</b> <span class="faint">(${d.cache})</span>`:yn(false,"","None yet")],
+      ["App manifest",yn(!!d.manifest,d.manifest?`${d.manifest.icons} icons`:"","Not found")],
+      ["Icons load",yn(!d.badIcons.length,"All OK","Missing: "+d.badIcons.join(", "))],
+      ["Installed",d.standalone?`<b>✓ Yes</b>`:"<b>No</b>"],
+      ["Install prompt available",d.canPrompt?`<b>✓ Yes</b>`:`<b>No</b> <span class="faint">${d.ios?"(iPhone: use Share → Add to Home Screen)":"(browser decides when)"}</span>`],
+    ].map(([k,v])=>`<div class="flex-between"><span class="muted">${k}</span><span>${v}</span></div>`).join("");
+  }
+  paintInstall(); $("#instRecheck").onclick=paintInstall;
+  $("#calAll").onclick=()=>Ics.openSheet(null,"Add all to calendar");
 
   // ----- PIN -----
   const pinToggle=$("#pinToggle"), pinSection=$("#pinSection");

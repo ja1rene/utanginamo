@@ -1,0 +1,30 @@
+// Run: node tests/ics.test.js
+const assert = require("assert"), path = require("path"); const ok = (m) => console.log("ok -", m);
+global.window = global; global.Icons = {}; global.Finance = require(path.join(__dirname, "../js/finance.js")); require(path.join(__dirname, "../js/utils.js"));
+const Ics = require(path.join(__dirname, "../js/ics.js")); const U = global.Utils, F = global.Finance;
+const D = (y,m,d)=>new Date(y,m-1,d,12).getTime(), NOW = D(2026,11,22);
+const mk = (loan, borrower, pays = []) => { const l = { id:"loan_abc123", status:"active", principal:10000, interestType:"none", penaltyType:"none", dateBorrowed:D(2026,10,1), ...loan };
+  const c = F.compute(l, pays, NOW); const sched = l.installments > 0 ? F.scheduleStatus(F.buildSchedule(l), F.toCents(c.principalPaid + c.interestPaid), NOW) : [];
+  return { loan: l, borrower, c, sched }; };
+const unfold = (t) => t.replace(/\r\n[ \t]/g, "");
+const lines = (t) => unfold(t).split("\r\n").filter(Boolean);
+
+let r = Ics.build([mk({ dueDate: D(2026,12,5) }, { name:"Ana Reyes" })], { name:true, amount:true, sameDay:true, dayBefore:true }, NOW);
+let L = lines(r.text);
+assert.equal(L[0], "BEGIN:VCALENDAR"); assert.equal(L[L.length-1], "END:VCALENDAR"); assert.ok(r.text.includes("\r\n") && !/[^\r]\n/.test(r.text)); ok("valid VCALENDAR with CRLF line endings");
+assert.equal(r.count, 1); assert.ok(L.includes("DTSTART;VALUE=DATE:20261205")); assert.ok(L.includes("DTEND;VALUE=DATE:20261206")); assert.ok(L.includes("UID:loan_abc123-due@utanginamo")); ok("all-day event on the due date, stable UID");
+assert.ok(L.includes("SUMMARY:Payment due: Ana Reyes (₱10\\,000.00)")); ok("summary escapes commas");
+assert.equal(L.filter(x => x === "TRIGGER:PT9H").length, 1); assert.equal(L.filter(x => x === "TRIGGER:-PT15H").length, 1); ok("alarms: 9am on the day + 9am day before");
+r = Ics.build([mk({ dueDate: D(2026,12,5) }, { name:"Ana Reyes" })], { name:false, amount:false, sameDay:true }, NOW); assert.ok(!r.text.includes("Ana") && !r.text.includes("10,000") && !r.text.includes("10\\,000")); assert.ok(lines(r.text).includes("SUMMARY:Payment due")); assert.equal(lines(r.text).filter(x => x.startsWith("TRIGGER")).length, 1); ok("privacy: name/amount omitted unless chosen");
+r = Ics.build([mk({ dueDate: D(2026,12,5) }, { name:"Ana" }, [{ id:"p", amount:10000, date:D(2026,11,1), createdAt:1 }])], { name:true }, NOW); assert.equal(r.count, 0); ok("paid loans are skipped");
+r = Ics.build([mk({ dueDate: D(2026,11,10) }, { name:"Ben" })], { name:true }, NOW); L = lines(r.text); assert.ok(L.includes("DTSTART;VALUE=DATE:20261123")); assert.ok(L.some(x => x.startsWith("SUMMARY:Follow up: overdue payment: Ben"))); assert.ok(L.includes("UID:loan_abc123-overdue@utanginamo")); ok("overdue loan → follow-up reminder for tomorrow (not a useless past date)");
+const inst = mk({ dueDate: D(2027,2,28), installments:4, installmentFreq:"monthly", dateBorrowed:D(2026,10,31) }, { name:"Cai" });
+r = Ics.build([inst], { name:true, amount:true }, NOW); L = lines(r.text); assert.equal(L.filter(x => x.startsWith("DTSTART")).length, 4); ok("installments → one event per unpaid installment");
+r = Ics.build([inst], { name:true, amount:true }, D(2026,12,15)); L = lines(r.text); assert.equal(L.filter(x => x.startsWith("DTSTART")).length, 3); assert.ok(!L.some(x => x.includes("Installment 1/4"))); assert.ok(L.some(x => x.includes("Installment 2/4 due: Cai"))); ok("past installments are skipped");
+assert.ok(!L.some(x => x.startsWith("UID:loan_abc123-due@"))); ok("loan-due event suppressed when it equals the last installment (no duplicate)");
+r = Ics.build([mk({ dueDate: D(2026,12,5) }, { name:"Ñandú Ünïcode 🙂 ".repeat(8) })], { name:true }, NOW);
+const enc = new TextEncoder(); for (const ln of r.text.split("\r\n")) assert.ok(enc.encode(ln).length <= 75, "line too long: " + ln.length); assert.ok(unfold(r.text).includes("🙂")); ok("long lines folded at 75 bytes without splitting multi-byte characters");
+assert.equal(Ics.esc("a,b;c\\d\ne"), "a\\,b\\;c\\\\d\\ne"); ok("TEXT escaping per RFC 5545");
+const a = Ics.build([mk({ dueDate: D(2026,12,5) }, { name:"A" })], {}, NOW).text, b = Ics.build([mk({ dueDate: D(2026,12,5) }, { name:"A" })], {}, NOW + 120000).text;
+const uid = (t) => lines(t).find(x => x.startsWith("UID")); assert.equal(uid(a), uid(b)); const seq = (t) => +lines(t).find(x => x.startsWith("SEQUENCE:")).slice(9); assert.ok(seq(b) > seq(a)); ok("re-export keeps UIDs and raises SEQUENCE so calendars replace, not duplicate");
+console.log("\nics tests passed");

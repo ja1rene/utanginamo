@@ -8,7 +8,7 @@ w.Icons = new Proxy({}, { get: () => "<i></i>" }); w.Router = { go() {}, refresh
 const load = f => w.eval(fs.readFileSync(path.join(__dirname, "../js", f), "utf8")); w.Pages = {};
 ["finance.js", "utils.js", "db.js"].forEach(load);
 w.eval(`window.emptyState=()=>"";window.statusTag=s=>s;window.loanRowHtml=()=>"";`);
-["security.js", "backup.js", "settings.js"].forEach(load);
+["security.js", "backup.js", "install.js", "ics.js", "settings.js"].forEach(load);
 const wait = (ms = 80) => new Promise(r => setTimeout(r, ms));
 const tap = async (root, digits) => { for (const d of digits) { root.querySelector(`[data-k="${d}"]`).click(); await wait(5); } await wait(500); };
 (async () => {

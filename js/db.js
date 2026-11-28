@@ -222,23 +222,26 @@ const DB = {
   async resetAll() { await atomic(["borrowers","loans","payments","attachments","activity","schedules"], (st) => ["borrowers","loans","payments","attachments","activity","schedules"].forEach(n => st(n).clear())); },
 
   // ---------- CSV export helpers ----------
+  // Spreadsheets need machine-readable values: plain numbers (dot decimal, no symbol), ISO dates, and a Currency column.
   async exportLoansCSV() {
     const [loans,payments,borrowers] = await Promise.all([DB.listLoans(),DB.allPayments(),DB.listBorrowers({includeArchived:true})]);
-    const rows = [["Borrower","Principal","Interest Type","Interest Rate","Interest","Penalty","Total Due","Paid","Remaining","Status","Date Borrowed","Due Date","Notes"]];
+    const cur = Utils.currencyCode || Utils.currencySymbol, iso = (t)=>t?Utils.toInputDate(t):"";
+    const rows = [["Borrower","Currency","Principal","Interest Type","Interest Rate","Interest","Penalty","Total Due","Paid","Remaining","Status","Date Borrowed","Due Date","Notes"]];
     for (const l of loans) {
       const b = borrowers.find(x=>x.id===l.borrowerId);
       const c = Utils.computeLoan(l,payments.filter(p=>p.loanId===l.id));
-      rows.push([b?.name||"",l.principal,l.interestType,l.interestRate,c.interest,c.penalty,c.totalDue,c.paid,c.remaining,c.status,Utils.fmtDate(l.dateBorrowed),Utils.fmtDate(l.dueDate),l.notes||""]);
+      rows.push([b?.name||"",cur,l.principal,l.interestType,l.interestRate,c.interest,c.penalty,c.totalDue,c.paid,c.remaining,c.status,iso(l.dateBorrowed),iso(l.dueDate),l.notes||""]);
     }
     return rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
   },
   async exportPaymentsCSV() {
     const [all,borrowers,loans] = await Promise.all([DB.getAll("payments"),DB.listBorrowers({includeArchived:true}),DB.listLoans()]);
+    const cur = Utils.currencyCode || Utils.currencySymbol;
     const byLoan = {}; for (const l of loans) byLoan[l.id] = Finance.compute(l, all.filter(p=>p.loanId===l.id));
-    const rows = [["Date","Borrower","Amount","Method","Reference","Notes","Principal","Interest","Penalty","Voided","Void Reason"]];
+    const rows = [["Date","Borrower","Currency","Amount","Method","Reference","Notes","Principal","Interest","Penalty","Voided","Void Reason"]];
     for (const p of all.sort((a,b)=>b.date-a.date)) {
       const b = borrowers.find(x=>x.id===p.borrowerId), a = byLoan[p.loanId]?.allocations[p.id] || {};
-      rows.push([Utils.fmtDate(p.date),b?.name||"",p.amount,p.method||"Cash",p.reference||"",p.notes||"",a.principal??"",a.interest??"",a.penalty??"",p.voidedAt?"Yes":"",p.voidReason||""]);
+      rows.push([Utils.toInputDate(p.date),b?.name||"",cur,p.amount,p.method||"Cash",p.reference||"",p.notes||"",a.principal??"",a.interest??"",a.penalty??"",p.voidedAt?"Yes":"",p.voidReason||""]);
     }
     return rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
   },

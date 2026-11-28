@@ -3,7 +3,7 @@
    A new version waits in the background. The user chooses when to apply it,
    and it is never applied while a form/sheet is open. IndexedDB is untouched.
    ============================================================ */
-window.APP_VERSION = "3.2.0";
+window.APP_VERSION = "3.3.0";
 (function () {
   if (!("serviceWorker" in navigator)) return;
   let applying = false;

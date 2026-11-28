@@ -1,10 +1,14 @@
 {
   "name": "utanginamo",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "private": true,
   "description": "Offline-first personal lending ledger (PWA). package.json is only for running the tests; the app itself has no dependencies or build step.",
   "scripts": {
-    "test": "node tests/finance.test.js && node tests/db.test.js && node tests/ui-smoke.test.js && node tests/security-backup.test.js && node tests/ui-security.test.js && node tests/app-boot.test.js"
+    "test": "node tests/pwa-audit.test.js && node tests/finance.test.js && node tests/db.test.js && node tests/region.test.js && node tests/ics.test.js && node tests/ui-smoke.test.js && node tests/security-backup.test.js && node tests/ui-security.test.js && node tests/app-boot.test.js",
+    "audit": "node tests/pwa-audit.test.js"
   },
-  "devDependencies": { "fake-indexeddb": "^6.0.0", "jsdom": "^25.0.0" }
+  "devDependencies": {
+    "fake-indexeddb": "^6.0.0",
+    "jsdom": "^25.0.0"
+  }
 }
